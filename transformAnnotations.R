@@ -14,7 +14,7 @@ appendCols<-function(duplicates,idx,k){
 }
 
 
-annotering_yoloformat <- read_delim("C:/Users/sebbe/Desktop/goose.csv", 
+annotering_yoloformat <- read_delim("C:/Users/sebbe/Desktop/drone_anno.csv", 
                                     ";", escape_double = FALSE, trim_ws = TRUE)
 View(annotering_yoloformat)
 
@@ -23,6 +23,7 @@ dubbles<-duplicated(annotering_yoloformat[,1])
 
 
 anno<-annotering_yoloformat
+
 
 anno[,4]<-anno[,4]+anno[,2]
 
@@ -47,6 +48,6 @@ for(i in 1:length(uniqueImg)){
 
 
 #lapply(hej, write, "test3.txt", append=T, ncolumns=1000 )
-sink("Goose_annotaions.txt")
+sink("last_drone_annotaions.txt")
 writeLines(unlist(lapply(hej, paste, sep = ",",collapse=",")))
 sink()

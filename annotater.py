@@ -22,7 +22,7 @@ class YOLO(object):
         self.model_path = 'model_data/yolo.h5' # model path or trained weights path
         self.anchors_path = 'model_data/yolo_anchors.txt'
         self.classes_path = 'model_data/coco_classes.txt'
-        self.score = 0.3
+        self.score = 0.5
         self.iou = 0.45
         self.class_names = self._get_class()
         self.anchors = self._get_anchors()
@@ -115,8 +115,8 @@ class YOLO(object):
         thickness = (image.size[0] + image.size[1]) // 300
 
 
-        aero = 0
         data = ''
+        object = 0
         for i, c in reversed(list(enumerate(out_classes))):
             predicted_class = self.class_names[c]
             box = out_boxes[i]
@@ -133,16 +133,22 @@ class YOLO(object):
             right = min(image.size[0], np.floor(right + 0.5).astype('int32'))
             #print(label, (left, top), (right, bottom))
 
-            print(filename)
-            print(label)
-            if label.split(' ')[0] == 'aeroplane':
-                aero = 1
+            #print(filename)
+            #print(label)
+            if label.split(' ')[0] == 'bird':
+                object = 1
                 if data == '':
-                    data += filename+' '+str(left)+','+str(top)+','+str(right)+','+str(bottom)+','+str(2)
+                    data += '2/'+filename+' '+str(left)+','+str(top)+','+str(right)+','+str(bottom)+','+str(1)
+                else:
+                    data += ' '+str(left)+','+str(top)+','+str(right)+','+str(bottom)+','+str(1)
+            if label.split(' ')[0] == 'aeroplane':
+                object = 1
+                if data == '':
+                    data += '2/'+filename+' '+str(left)+','+str(top)+','+str(right)+','+str(bottom)+','+str(2)
                 else:
                     data += ' '+str(left)+','+str(top)+','+str(right)+','+str(bottom)+','+str(2)
 
-
+            #print('data: '+data)
             if top - label_size[1] >= 0:
                 text_origin = np.array([left, top - label_size[1]])
             else:
@@ -159,9 +165,10 @@ class YOLO(object):
             draw.text(text_origin, label, fill=(0, 0, 0), font=font)
             del draw
 
-        if aero:
+        if object:
             data+='\n'
-            file = open('annotations_airplane.txt', 'a')
+            #print('data: '+data)
+            file = open('annotations3.txt', 'a')
             file.write(data)
             file.close()
 
@@ -216,15 +223,13 @@ def detect_video(yolo, video_path, output_path=""):
 
 
 def detect_img(yolo):
-    directory = 'C:\\Users\\CTK_CAD\\Chalmers Teknologkonsulter AB\\Bird Classification - Images\\Bird Detection - Images\\Original, rescaled 256x256\\class1 (Airplane)\\ImagesNoBbox\\'
-    outDir = 'C:\\Users\\CTK_CAD\\Chalmers Teknologkonsulter AB\\Bird Classification - Images\\Bird Detection - Images\\Original, rescaled 256x256\\class1 (Airplane)\\ImagesWithBbox\\'
+    directory = 'C:\\Users\\CTK_CAD\\Chalmers Teknologkonsulter AB\\Bird Classification - Images\\Bird Detection - Images\\Original images\\2\\'
     count = 0
     for filename in os.listdir(directory):
-        if count!=200:
+        if count!=430:
             if filename.endswith(".jpg") or filename.endswith(".png"):
                 image = Image.open(directory+filename)
                 r_image = yolo.detect_image(image,filename)
-                r_image.save(outDir+filename)
                 #r_image.show()
                 count+=1
         else:

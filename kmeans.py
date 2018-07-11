@@ -1,11 +1,11 @@
 import numpy as np
-
+from matplotlib import pyplot as plt
 
 class YOLO_Kmeans:
 
     def __init__(self, cluster_number, filename):
         self.cluster_number = cluster_number
-        self.filename = "2012_train.txt"
+        self.filename = filename
 
     def iou(self, boxes, clusters):  # 1 box -> k clusters
         n = boxes.shape[0]
@@ -58,7 +58,7 @@ class YOLO_Kmeans:
         return clusters
 
     def result2txt(self, data):
-        f = open("yolo_anchors.txt", 'w')
+        f = open("my_anchors4.txt", 'w')
         row = np.shape(data)[0]
         for i in range(row):
             if i == 0:
@@ -74,6 +74,7 @@ class YOLO_Kmeans:
         for line in f:
             infos = line.split(" ")
             length = len(infos)
+
             for i in range(1, length):
                 width = int(infos[i].split(",")[2]) - \
                     int(infos[i].split(",")[0])
@@ -89,6 +90,9 @@ class YOLO_Kmeans:
         result = self.kmeans(all_boxes, k=self.cluster_number)
         result = result[np.lexsort(result.T[0, None])]
         self.result2txt(result)
+        plt.scatter(all_boxes[:, 0], all_boxes[:, 1], c = "blue")
+        plt.scatter(result[:, 0], result[:, 1], c="red")
+        plt.show()
         print("K anchors:\n {}".format(result))
         print("Accuracy: {:.2f}%".format(
             self.avg_iou(all_boxes, result) * 100))
@@ -96,6 +100,7 @@ class YOLO_Kmeans:
 
 if __name__ == "__main__":
     cluster_number = 9
-    filename = "2012_train.txt"
+    prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
+    filename = prefix + "train2.txt"
     kmeans = YOLO_Kmeans(cluster_number, filename)
     kmeans.txt2clusters()

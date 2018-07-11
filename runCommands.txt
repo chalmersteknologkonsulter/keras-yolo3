@@ -1,0 +1,6 @@
+gcloud ml-engine jobs submit training testTrain3 \
+        --job-dir gs://bdp-original-images/logs/ \
+        --package-path ./keras-yolo3 \
+        --module-name keras-yolo3.train \
+        --region europe-west1 \
+        --config=keras-yolo3/cloudml-gpu.yaml

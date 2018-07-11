@@ -14,22 +14,24 @@ from yolo3.utils import get_random_data
 
 
 def _main():
-    annotation_path = 'train.txt'
+    prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
+    # prefix = 'gs:/bdp-original-images/Original images/'
+    annotation_path = prefix + 'newAnn.txt'
     log_dir = 'logs/000/'
-    classes_path = 'model_data/coco_classes.txt'
-    anchors_path = 'model_data/yolo_anchors.txt'
+    classes_path = 'model_data/teade_classes.txt'
+    anchors_path = 'model_data/my_anchors3.txt'
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
     anchors = get_anchors(anchors_path)
 
-    input_shape = (416,416) # multiple of 32, hw
+    input_shape = (384,384) # multiple of 32, hw
 
     model, bottleneck_model, last_layer_model = create_model(input_shape, anchors, num_classes,
-            freeze_body=2, weights_path='model_data/yolo_weights.h5') # make sure you know what you freeze
+            freeze_body=1, weights_path='logs/000/new_trained_weights_stage_1.h5') # make sure you know what you freeze
 
     logging = TensorBoard(log_dir=log_dir)
     checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
-        monitor='val_loss', save_weights_only=True, save_best_only=True, period=3)
+        monitor='val_loss', save_weights_only=True, save_best_only=True, period=5)
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, verbose=1)
     early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=1)
 
@@ -46,30 +48,30 @@ def _main():
     # Adjust num epochs to your dataset. This step is enough to obtain a not bad model.
     if True:
         # perform bottleneck training
-        if not os.path.isfile("bottlenecks.npz"):
+        if not os.path.isfile("E:/Teade_bottlenecks/bottlenecks_org249_3.npz"):
             print("calculating bottlenecks")
-            batch_size=8
-            bottlenecks=bottleneck_model.predict_generator(data_generator_wrapper(lines, batch_size, input_shape, anchors, num_classes, random=False, verbose=True),
+            batch_size=16
+            bottlenecks=bottleneck_model.predict_generator(data_generator_wrapper(lines,prefix, batch_size, input_shape, anchors, num_classes, random=False, verbose=True),
              steps=(len(lines)//batch_size)+1, max_queue_size=1)
-            np.savez("bottlenecks.npz", bot0=bottlenecks[0], bot1=bottlenecks[1], bot2=bottlenecks[2])
-    
+            np.savez("E:/Teade_bottlenecks/bottlenecks_org249_3.npz", bot0=bottlenecks[0], bot1=bottlenecks[1], bot2=bottlenecks[2])
+
         # load bottleneck features from file
-        dict_bot=np.load("bottlenecks.npz")
+        dict_bot=np.load("E:/Teade_bottlenecks/bottlenecks_org249_3.npz")
         bottlenecks_train=[dict_bot["bot0"][:num_train], dict_bot["bot1"][:num_train], dict_bot["bot2"][:num_train]]
         bottlenecks_val=[dict_bot["bot0"][num_train:], dict_bot["bot1"][num_train:], dict_bot["bot2"][num_train:]]
 
         # train last layers with fixed bottleneck features
-        batch_size=8
+        batch_size=16
         print("Training last layers with bottleneck features")
         print('with {} samples, val on {} samples and batch size {}.'.format(num_train, num_val, batch_size))
         last_layer_model.compile(optimizer='adam', loss={'yolo_loss': lambda y_true, y_pred: y_pred})
-        last_layer_model.fit_generator(bottleneck_generator(lines[:num_train], batch_size, input_shape, anchors, num_classes, bottlenecks_train),
+        last_layer_model.fit_generator(bottleneck_generator(lines[:num_train],prefix, batch_size, input_shape, anchors, num_classes, bottlenecks_train),
                 steps_per_epoch=max(1, num_train//batch_size),
-                validation_data=bottleneck_generator(lines[num_train:], batch_size, input_shape, anchors, num_classes, bottlenecks_val),
+                validation_data=bottleneck_generator(lines[num_train:],prefix, batch_size, input_shape, anchors, num_classes, bottlenecks_val),
                 validation_steps=max(1, num_val//batch_size),
-                epochs=30,
-                initial_epoch=0, max_queue_size=1)
-        model.save_weights(log_dir + 'trained_weights_stage_0.h5')
+                epochs=300,
+                initial_epoch=250, max_queue_size=1)
+        model.save_weights(log_dir + 'new_trained_weights160frosen.h5')
         
         # train last layers with random augmented data
         model.compile(optimizer=Adam(lr=1e-3), loss={
@@ -77,18 +79,18 @@ def _main():
             'yolo_loss': lambda y_true, y_pred: y_pred})
         batch_size = 16
         print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
-        model.fit_generator(data_generator_wrapper(lines[:num_train], batch_size, input_shape, anchors, num_classes),
+        model.fit_generator(data_generator_wrapper(lines[:num_train],prefix, batch_size, input_shape, anchors, num_classes),
                 steps_per_epoch=max(1, num_train//batch_size),
-                validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
+                validation_data=data_generator_wrapper(lines[num_train:],prefix, batch_size, input_shape, anchors, num_classes),
                 validation_steps=max(1, num_val//batch_size),
-                epochs=50,
-                initial_epoch=0,
+                epochs=320,
+                initial_epoch=300,
                 callbacks=[logging, checkpoint])
-        model.save_weights(log_dir + 'trained_weights_stage_1.h5')
+        model.save_weights(log_dir + 'new_trained_weights160frosen.h5')
 
     # Unfreeze and continue training, to fine-tune.
     # Train longer if the result is not good.
-    if True:
+    if False:
         for i in range(len(model.layers)):
             model.layers[i].trainable = True
         model.compile(optimizer=Adam(lr=1e-4), loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
@@ -96,9 +98,9 @@ def _main():
 
         batch_size = 4 # note that more GPU memory is required after unfreezing the body
         print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
-        model.fit_generator(data_generator_wrapper(lines[:num_train], batch_size, input_shape, anchors, num_classes),
+        model.fit_generator(data_generator_wrapper(lines[:num_train],prefix, batch_size, input_shape, anchors, num_classes),
             steps_per_epoch=max(1, num_train//batch_size),
-            validation_data=data_generator_wrapper(lines[num_train:], batch_size, input_shape, anchors, num_classes),
+            validation_data=data_generator_wrapper(lines[num_train:],prefix, batch_size, input_shape, anchors, num_classes),
             validation_steps=max(1, num_val//batch_size),
             epochs=100,
             initial_epoch=50,
@@ -142,7 +144,7 @@ def create_model(input_shape, anchors, num_classes, load_pretrained=True, freeze
         print('Load weights {}.'.format(weights_path))
         if freeze_body in [1, 2]:
             # Freeze darknet53 body or freeze all but 3 output layers.
-            num = (185, len(model_body.layers)-3)[freeze_body-1]
+            num = (160, len(model_body.layers)-3)[freeze_body-1]
             for i in range(num): model_body.layers[i].trainable = False
             print('Freeze the first {} layers of total {} layers.'.format(num, len(model_body.layers)))
 
@@ -173,7 +175,7 @@ def create_model(input_shape, anchors, num_classes, load_pretrained=True, freeze
 
     return model, bottleneck_model, last_layer_model
 
-def data_generator(annotation_lines, batch_size, input_shape, anchors, num_classes, random=True, verbose=False):
+def data_generator(annotation_lines,prefix, batch_size, input_shape, anchors, num_classes, random=True, verbose=False):
     '''data generator for fit_generator'''
     n = len(annotation_lines)
     i = 0
@@ -183,7 +185,7 @@ def data_generator(annotation_lines, batch_size, input_shape, anchors, num_class
         for b in range(batch_size):
             if i==0 and random:
                 np.random.shuffle(annotation_lines)
-            image, box = get_random_data(annotation_lines[i], input_shape, random=random)
+            image, box = get_random_data(annotation_lines[i],prefix, input_shape, random=random)
             image_data.append(image)
             box_data.append(box)
             i = (i+1) % n
@@ -194,12 +196,12 @@ def data_generator(annotation_lines, batch_size, input_shape, anchors, num_class
         y_true = preprocess_true_boxes(box_data, input_shape, anchors, num_classes)
         yield [image_data, *y_true], np.zeros(batch_size)
 
-def data_generator_wrapper(annotation_lines, batch_size, input_shape, anchors, num_classes, random=True, verbose=False):
+def data_generator_wrapper(annotation_lines,prefix, batch_size, input_shape, anchors, num_classes, random=True, verbose=False):
     n = len(annotation_lines)
     if n==0 or batch_size<=0: return None
-    return data_generator(annotation_lines, batch_size, input_shape, anchors, num_classes, random, verbose)
+    return data_generator(annotation_lines,prefix, batch_size, input_shape, anchors, num_classes, random, verbose)
 
-def bottleneck_generator(annotation_lines, batch_size, input_shape, anchors, num_classes, bottlenecks):
+def bottleneck_generator(annotation_lines,prefix, batch_size, input_shape, anchors, num_classes, bottlenecks):
     n = len(annotation_lines)
     i = 0
     while True:
@@ -208,7 +210,7 @@ def bottleneck_generator(annotation_lines, batch_size, input_shape, anchors, num
         b1=np.zeros((batch_size,bottlenecks[1].shape[1],bottlenecks[1].shape[2],bottlenecks[1].shape[3]))
         b2=np.zeros((batch_size,bottlenecks[2].shape[1],bottlenecks[2].shape[2],bottlenecks[2].shape[3]))
         for b in range(batch_size):
-            _, box = get_random_data(annotation_lines[i], input_shape, random=False, proc_img=False)
+            _, box = get_random_data(annotation_lines[i],prefix, input_shape, random=False, proc_img=False)
             box_data.append(box)
             b0[b]=bottlenecks[0][i]
             b1[b]=bottlenecks[1][i]

@@ -14,7 +14,7 @@ def blurImage(road1, sign, x, y):
     roads = list()
     roads.append(road)
     #roads[-1].show()
-    num_of_it = 2
+    num_of_it = 4
     for bl in range(num_of_it):
         frac = (bl + 1) / 40
         marginx = round(sign.size[0] * frac)
@@ -25,9 +25,13 @@ def blurImage(road1, sign, x, y):
         bottom_side = roads[-1].crop((x - marginx, y + sign.size[1] - marginy, x + sign.size[0] + marginx,y + sign.size[1] + marginy))  # Left edge of transition
 
         left_side = left_side.filter(ImageFilter.GaussianBlur)
+        #print("left")
         right_side = right_side.filter(ImageFilter.GaussianBlur)
+        #print("right")
         top_side = top_side.filter(ImageFilter.GaussianBlur)
+        #print("top")
         bottom_side = bottom_side.filter(ImageFilter.GaussianBlur)
+        #print("bottom")
 
         roads[-1].paste(left_side, (x - marginx, y - marginy))
         roads[-1].paste(right_side, (x + sign.size[0] - marginx, y - marginy))

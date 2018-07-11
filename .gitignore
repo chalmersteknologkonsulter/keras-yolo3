@@ -4,6 +4,11 @@
 *.h5
 logs/
 *_test.py
+*.mp4
+*.MOV
+*.yaml
+*.CTK_CAD-DATOR
+*.npz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

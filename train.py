@@ -34,7 +34,7 @@ def _main():
     num_classes = len(class_names)
     anchors = get_anchors(anchors_path)
 
-    input_shape = (416,416) # multiple of 32, hw
+    input_shape = (320,320) # multiple of 32, hw
 
     is_tiny_version = len(anchors)==6 # default setting
     if is_tiny_version:
@@ -42,7 +42,7 @@ def _main():
             freeze_body=1, weights_path='model_data/tiny_yolo_weights.h5')
     else:
         #model = create_model(input_shape, anchors, num_classes,freeze_body=2, weights_path='logs/000/new_trained_weights_stage_1.h5') # make sure you know what you freeze
-        model = create_model(input_shape, anchors, num_classes,freeze_body=2, weights_path=log_dir + 'finalmodel_stage_14.h5') # make sure you know what you freeze
+        model = create_model(input_shape, anchors, num_classes,freeze_body=2, weights_path=log_dir + 'finalmodel_stage_17.h5') # make sure you know what you freeze
 
     logging = TensorBoard(log_dir=event_dir)
     checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
@@ -85,29 +85,79 @@ def _main():
 
     # Unfreeze and continue training, to fine-tune.
     # Train longer if the result is not good.
-    num_iter = 4
-    epoch_per_iter = 15  # Tror att detta fungerar men tänk en extra gång på om modellen sparas i varje iteration
+
+    ################################# GPU limitations:
+    '''
+    Batch 16:
+    Input_size = 352, batch 16 funkar ner t.o.m. 110 frysta lager
+    Input_size = 320, batch 16 funkar ner t.o.m. 100 frysta lager
+    Input_size = 288, batch 16 funkar ner t.o.m. 80 frysta lager
+    Input_size = 256, batch 16 funkar ner t.o.m. 50 frysta lager
+    Input_size = 224, batch 16 funkar ner t.o.m. 20 frysta lager
+    Input_size = 192, batch 16 funkar ner t.o.m. 10 frysta lager
+    Input_size = 160, batch 16 funkar ner t.o.m. 0 frysta lager - hela modellen!
+    
+    Batch 12:
+    Input_size = 352, batch 12 funkar ner t.o.m. 90 frysta lager
+    Input_size = 320, batch 12 funkar ner t.o.m. 70 frysta lager
+    Input_size = 288, batch 12 funkar ner t.o.m. 50 frysta lager
+    Input_size = 256, batch 12 funkar ner t.o.m. 20 frysta lager
+    Input_size = 224, batch 12 funkar ner t.o.m. 10 frysta lager
+    Input_size = 192, batch 12 funkar ner t.o.m. 0 frysta lager - hela modellen!
+    Input_size = 160, batch 12 funkar ner t.o.m. 0 frysta lager - hela modellen!
+    
+    Batch 8:
+    Input_size = 352, batch 8 funkar ner t.o.m. 40 frysta lager
+    Input_size = 320, batch 8 funkar ner t.o.m. 30 frysta lager
+    Input_size = 288, batch 8 funkar ner t.o.m. 20 frysta lager
+    Input_size = 256, batch 8 funkar ner t.o.m. 10 frysta lager
+    Input_size = 224, batch 8 funkar ner t.o.m. 0 frysta lager - hela modellen!
+    Input_size = 192, batch 8 funkar ner t.o.m. 0 frysta lager - hela modellen!
+    Input_size = 160, batch 8 funkar ner t.o.m. 0 frysta lager - hela modellen!
+    
+    Batch 6:
+    Input_size = 320, batch 6 funkar ner t.o.m. 10 frysta lager
+    
+    Batch 4:
+    Input_size = 320, batch 4 funkar ner t.o.m. 0 frysta lager - hela modellen!
+    
+    '''
+
+    ####################################
+
+    num_iter = 18
+    epoch_per_iter = 15
+    start_freeze = 170
+    freeze_per_iter = 10
+    start_epoch = 330
+    start_model = 18 #save as Final_model_XXX.h5 for the first iteration
+    batch_size = 16
     if True:
         for iter in range(num_iter):
-            for i in range(200-iter*10,len(model.layers)):
+            temp = start_freeze-iter*freeze_per_iter
+            for i in range(temp,len(model.layers)):
                 model.layers[i].trainable = True
             model.compile(optimizer=Adam(lr=1e-4), loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
-            temp = 200 - 10*iter
             print('Freeze '+ str(temp) +' of the layers.')
-            batch_size = 16 # note that more GPU memory is required after unfreezing the body
-            if temp <= 100 and temp >=40:  #modellen klarar att frysa alla utom 110 lager om input_shape = 352, batch=16, men crashar för 100 lager
+
+            if temp <= 110 and temp >=90:  #antar input_sixe = 320
+                batch_size = 12
+            if temp <= 80 and temp >=50:
                 batch_size = 8
+            if temp<=40:
+                batch_size=4
+
             print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
-            init_epoch = 285+iter*epoch_per_iter
+            init_epoch = start_epoch+iter*epoch_per_iter
             model.fit_generator(data_generator_wrapper(lines[:num_train], prefix, batch_size, input_shape, anchors, num_classes),
                 steps_per_epoch=max(1, num_train//batch_size),
                 validation_data=data_generator_wrapper(lines[num_train:], prefix, batch_size, input_shape, anchors, num_classes),
                 validation_steps=max(1, num_val//batch_size),
                 epochs=init_epoch+epoch_per_iter,
                 initial_epoch=init_epoch,
-                verbose=2,
+                verbose=1,
                 callbacks=[logging, checkpoint, reduce_lr, early_stopping])
-            temp_num = iter+15
+            temp_num = iter+start_model
             model.save_weights(log_dir + 'finalmodel_stage_'+str(temp_num)+'.h5')
 
     # Further training if needed.

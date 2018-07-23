@@ -25,7 +25,7 @@ Only change model_path, anchors_path and score!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 class YOLO(object):
     def __init__(self):
-        self.model_path = 'E:/Teade checkpoints/000/finalmodel_stage_14.h5' # only thing to change
+        self.model_path = 'E:/Teade checkpoints/000/finalmodel_stage_20.h5' # only thing to change
         self.anchors_path = 'model_data/my_anchors4.txt' # only thing to change
         self.classes_path = 'model_data/teade_classes.txt'
         self.score = 0.2

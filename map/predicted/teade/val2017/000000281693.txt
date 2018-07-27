@@ -1,0 +1,5 @@
+Airplane 0.29 134 115 361 297
+Airplane 0.30 574 131 634 218
+Airplane 0.31 62 74 234 253
+Airplane 0.43 383 115 587 300
+Airplane 0.78 7 137 79 234

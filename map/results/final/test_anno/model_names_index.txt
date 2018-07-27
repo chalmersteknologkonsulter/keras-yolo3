@@ -1,0 +1,6 @@
+D:/Teade checkpoints/finalmodel_stage_20.h5
+D:/Teade checkpoints/model_new_24_july_30.h5
+D:/Teade checkpoints/model_old_23_july_120.h5
+D:/Teade checkpoints/model_old_23_july_145.h5
+D:/Teade checkpoints/model_old_23_july_170.h5
+D:/Teade checkpoints/model_old_23_july_200.h5

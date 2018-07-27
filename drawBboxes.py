@@ -1,9 +1,13 @@
 from PIL import Image, ImageDraw
-
-prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
+prefix = 'C:/Users/CTK-VR1/Chalmers Teknologkonsulter AB/Bird Classification - Bird Detection - Images/Original images/'
 annotationsfile = prefix + 'test_anno.txt'
-#annotationsfile = prefix + 'newAnn.txt'
+imagepath = 'C:/Users/CTK-VR1/Chalmers Teknologkonsulter AB/Bird Classification - Bird Detection - Images/Original images/'
+
+''' #CTK-CAD dator
+#prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
+annotationsfile = prefix + 'test_anno.txt'
 imagepath = 'C:/Users/CTK_CAD/PycharmProjects/mAP/images/'
+'''
 
 with open(annotationsfile) as f:
     lines = f.readlines()
@@ -24,4 +28,4 @@ for line in lines:
         #print([x1,x2,y1,y2])
         draw = ImageDraw.Draw(img)
         draw.rectangle([x1,y1,x2,y2])
-    #img.show()
+    img.show()

@@ -19,8 +19,9 @@ from yolo3.utils import letterbox_image
 
 class YOLO(object):
     def __init__(self):
-        self.model_path = 'E:/Teade checkpoints/000/finalmodel_stage_14.h5'  # model path or trained weights path
-        self.anchors_path = 'model_data/my_anchors.txt'
+        self.model_path = 'D:/Teade checkpoints/model_old_23_july_170.h5'  # model path or trained weights path
+        #self.model_path = 'E:/Teade checkpoints/000/finalmodel_stage_14.h5'  # model path or trained weights path
+        self.anchors_path = 'model_data/my_anchors4.txt'
         self.classes_path = 'model_data/teade_classes.txt'
         #self.model_path = 'model_data/yolo.h5' # model path or trained weights path
         #self.anchors_path = 'model_data/yolo_anchors.txt'
@@ -30,8 +31,8 @@ class YOLO(object):
         self.class_names = self._get_class()
         self.anchors = self._get_anchors()
         self.sess = K.get_session()
-        self.model_image_size = (256, 256)
-        #self.model_image_size = (416, 416) # fixed size or (None, None), hw
+        #self.model_image_size = (256, 256)
+        self.model_image_size = (1024, 1024) # fixed size or (None, None), hw
         self.boxes, self.scores, self.classes = self.generate()
 
     def _get_class(self):

@@ -44,18 +44,19 @@ for line in lines:
     
 '''
 '''
-prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
-annotationsfile = prefix + 'train.txt'
+prefix = 'C:/Users/CTK-VR1/Chalmers Teknologkonsulter AB/Bird Classification - Bird Detection - Images/Original images/'
+
+annotationsfile = prefix + 'train5fel.txt'
 
 with open(annotationsfile) as f:
     lines = f.readlines()
 for line in lines:
-    if line[-2]==' ':
-        line=line[:-2]+'\n'
-
-    file = open(prefix + 'train2.txt', 'a')
-    file.write(line)
-    file.close()
+    if line[0]=='a':
+        print(line)
+    else:
+        file = open(prefix + 'train5.txt', 'a')
+        file.write(line)
+        file.close()
 '''
 '''
 from argparse import ArgumentParser as ap
@@ -74,6 +75,7 @@ if __name__== '__main__':
     print(cyl_vol(r,h))
 
 
+
+for iter in [249, 225, 200, 170, 145, 120, 90, 60, 30, 0]:
+    print(iter)
 '''
-for i in range(250,252):
-    print(i)

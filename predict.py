@@ -24,16 +24,16 @@ Only change model_path, anchors_path and score!!!!!!!!!!!!!!!!!!!!!!!!!!
 '''
 
 class YOLO(object):
-    def __init__(self):
-        self.model_path = 'E:/Teade checkpoints/000/finalmodel_stage_14.h5' # only thing to change
-        self.anchors_path = 'model_data/my_anchors4.txt' # only thing to change
-        self.classes_path = 'model_data/teade_classes.txt'
-        self.score = 0.2
-        self.iou = 0.5
+    def __init__(self, model_path, anchors_path, classes_path, score=0.2, iou=0.5, img_size=416):
+        self.model_path = model_path  #'D:/Teade checkpoints/model_new_25_july_0_ver_1.h5' # only thing to change
+        self.anchors_path = anchors_path  #'model_data/my_anchors4.txt' # only thing to change
+        self.classes_path = classes_path  #'model_data/teade_classes.txt'
+        self.score = score
+        self.iou = iou
         self.class_names = self._get_class()
         self.anchors = self._get_anchors()
         self.sess = K.get_session()
-        self.model_image_size = (416, 416) # fixed size or (None, None), hw
+        self.model_image_size = (img_size, img_size) # fixed size or (None, None), hw
         self.boxes, self.scores, self.classes = self.generate()
 
     def _get_class(self):
@@ -103,7 +103,8 @@ class YOLO(object):
 
         #print('Found {} boxes for {}'.format(len(out_boxes), 'img'))
 
-        pred_prefix = 'C:/Users/CTK_CAD/PycharmProjects/mAP/predicted/'
+        pred_prefix = 'C:/Users/CTK-VR1/PycharmProjects/mAP/predicted/'
+        #pred_prefix = 'C:/Users/CTK_CAD/PycharmProjects/mAP/predicted/'
         text_file = open(pred_prefix + filename.split('.')[0] + '.txt', 'a')
         text_file.close()
 
@@ -129,11 +130,9 @@ class YOLO(object):
     def close_session(self):
         self.sess.close()
 
-def detect_img(yolo):
-    prefix = 'C:\\Users\\CTK_CAD\\Chalmers Teknologkonsulter AB\\Bird Classification - Images\\Bird Detection - Images\\Original images\\'
-    anno_file = 'test_anno.txt'
-
-    pred_dir = 'C:/Users/CTK_CAD/PycharmProjects/mAP/predicted'
+def detect_img(yolo,prefix,anno_file):
+    pred_dir = 'C:/Users/CTK-VR1/PycharmProjects/mAP/predicted'
+    #pred_dir = 'C:/Users/CTK_CAD/PycharmProjects/mAP/predicted'
     for subdir, dirs, files in os.walk(pred_dir):
         for f in files:
             os.remove(os.path.join(subdir,f))
@@ -145,10 +144,18 @@ def detect_img(yolo):
         filename = line.split()[0]
         if filename.endswith(".jpg") or filename.endswith(".png"):
             image = Image.open(prefix + filename)
+            #print(filename)
             yolo.detect_image(image, filename)
-    yolo.close_session()
-
-
+    #yolo.close_session()
 
 if __name__ == '__main__':
-    detect_img(YOLO())
+    prefix = 'C:/Users/CTK-VR1/Chalmers Teknologkonsulter AB/Bird Classification - Bird Detection - Images/Original images/'
+    modelprefix = 'D:/Teade checkpoints/'
+    annotations_file = 'test_anno.txt'  # File to evaluate mAP on
+    anchors_path = 'model_data/my_anchors4.txt'
+    classes_path = 'model_data/teade_classes.txt'
+    score = 0.2
+    IOU = 0.5
+    model_path = 'model_old_23_july_170.h5'
+
+    detect_img(YOLO(modelprefix + model_path, anchors_path, classes_path, score, IOU), prefix, annotations_file)  # predict using given model

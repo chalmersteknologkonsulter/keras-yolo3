@@ -58,7 +58,7 @@ class YOLO_Kmeans:
         return clusters
 
     def result2txt(self, data):
-        f = open("my_anchors4.txt", 'w')
+        f = open("my_anchorstest.txt", 'w')
         row = np.shape(data)[0]
         for i in range(row):
             if i == 0:
@@ -100,7 +100,8 @@ class YOLO_Kmeans:
 
 if __name__ == "__main__":
     cluster_number = 9
-    prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
+    prefix = 'C:/Users/CTK-VR1/Chalmers Teknologkonsulter AB/Bird Classification - Bird Detection - Images/Original images/'
+    #prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
     filename = prefix + "train2.txt"
     kmeans = YOLO_Kmeans(cluster_number, filename)
     kmeans.txt2clusters()

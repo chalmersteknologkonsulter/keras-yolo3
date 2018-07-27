@@ -14,24 +14,26 @@ from yolo3.utils import get_random_data
 
 
 def _main():
-    prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
+    prefix = 'C:/Users/CTK-VR1/Chalmers Teknologkonsulter AB/Bird Classification - Bird Detection - Images/Original images/'
+    #prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
     # prefix = 'gs:/bdp-original-images/Original images/'
-    annotation_path = prefix + 'newAnn.txt'
-    log_dir = 'logs/000/'
+    annotation_path = prefix + 'train2.txt'
+    log_dir = 'D:/Teade checkpoints/'
+    event_dir = 'logs/000/'
     classes_path = 'model_data/teade_classes.txt'
-    anchors_path = 'model_data/my_anchors3.txt'
+    anchors_path = 'model_data/my_anchors4.txt'
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
     anchors = get_anchors(anchors_path)
 
-    input_shape = (384,384) # multiple of 32, hw
+    input_shape = (256,256) # multiple of 32, hw #New computer can max handle (256,256) images (with train2.txt), with 256 batch and 249 layers
 
     model, bottleneck_model, last_layer_model = create_model(input_shape, anchors, num_classes,
-            freeze_body=1, weights_path='logs/000/new_trained_weights_stage_1.h5') # make sure you know what you freeze
+            freeze_body=1, weights_path=log_dir + 'ep016-loss23.804-val_loss24.921.h5') # make sure you know what you freeze
 
-    logging = TensorBoard(log_dir=log_dir)
+    logging = TensorBoard(log_dir=event_dir)
     checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
-        monitor='val_loss', save_weights_only=True, save_best_only=True, period=5)
+        monitor='val_loss', save_weights_only=True, save_best_only=True, mode='min', period=1)
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, verbose=1)
     early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=1)
 
@@ -46,22 +48,25 @@ def _main():
 
     # Train with frozen layers first, to get a stable loss.
     # Adjust num epochs to your dataset. This step is enough to obtain a not bad model.
+    bottle_path = 'D:/Teade bottlenecks/bottlenecks_new_23_july_100.npz'
+    batch_size=16
     if True:
         # perform bottleneck training
-        if not os.path.isfile("E:/Teade_bottlenecks/bottlenecks_org249_3.npz"):
+        if not os.path.isfile(bottle_path):
             print("calculating bottlenecks")
-            batch_size=16
+            #batch_size=16
             bottlenecks=bottleneck_model.predict_generator(data_generator_wrapper(lines,prefix, batch_size, input_shape, anchors, num_classes, random=False, verbose=True),
              steps=(len(lines)//batch_size)+1, max_queue_size=1)
-            np.savez("E:/Teade_bottlenecks/bottlenecks_org249_3.npz", bot0=bottlenecks[0], bot1=bottlenecks[1], bot2=bottlenecks[2])
+            np.savez(bottle_path.strip('.npz'), bot0=bottlenecks[0], bot1=bottlenecks[1], bot2=bottlenecks[2])
+            print('bottleneck saved')
 
         # load bottleneck features from file
-        dict_bot=np.load("E:/Teade_bottlenecks/bottlenecks_org249_3.npz")
+        dict_bot=np.load(bottle_path)
         bottlenecks_train=[dict_bot["bot0"][:num_train], dict_bot["bot1"][:num_train], dict_bot["bot2"][:num_train]]
         bottlenecks_val=[dict_bot["bot0"][num_train:], dict_bot["bot1"][num_train:], dict_bot["bot2"][num_train:]]
 
         # train last layers with fixed bottleneck features
-        batch_size=16
+        #batch_size=32
         print("Training last layers with bottleneck features")
         print('with {} samples, val on {} samples and batch size {}.'.format(num_train, num_val, batch_size))
         last_layer_model.compile(optimizer='adam', loss={'yolo_loss': lambda y_true, y_pred: y_pred})
@@ -69,24 +74,24 @@ def _main():
                 steps_per_epoch=max(1, num_train//batch_size),
                 validation_data=bottleneck_generator(lines[num_train:],prefix, batch_size, input_shape, anchors, num_classes, bottlenecks_val),
                 validation_steps=max(1, num_val//batch_size),
-                epochs=300,
-                initial_epoch=250, max_queue_size=1)
-        model.save_weights(log_dir + 'new_trained_weights160frosen.h5')
+                epochs=30,
+                initial_epoch=16, max_queue_size=1)
+        model.save_weights(log_dir + 'model_new_23_july_100_bottle_test.h5')
         
         # train last layers with random augmented data
         model.compile(optimizer=Adam(lr=1e-3), loss={
             # use custom yolo_loss Lambda layer.
             'yolo_loss': lambda y_true, y_pred: y_pred})
-        batch_size = 16
+        #batch_size = 32
         print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
         model.fit_generator(data_generator_wrapper(lines[:num_train],prefix, batch_size, input_shape, anchors, num_classes),
                 steps_per_epoch=max(1, num_train//batch_size),
                 validation_data=data_generator_wrapper(lines[num_train:],prefix, batch_size, input_shape, anchors, num_classes),
                 validation_steps=max(1, num_val//batch_size),
-                epochs=320,
-                initial_epoch=300,
+                epochs=40,
+                initial_epoch=30,
                 callbacks=[logging, checkpoint])
-        model.save_weights(log_dir + 'new_trained_weights160frosen.h5')
+        model.save_weights(log_dir + 'model_new_23_july_100_bottle_test.h5')
 
     # Unfreeze and continue training, to fine-tune.
     # Train longer if the result is not good.
@@ -144,7 +149,7 @@ def create_model(input_shape, anchors, num_classes, load_pretrained=True, freeze
         print('Load weights {}.'.format(weights_path))
         if freeze_body in [1, 2]:
             # Freeze darknet53 body or freeze all but 3 output layers.
-            num = (160, len(model_body.layers)-3)[freeze_body-1]
+            num = (100, len(model_body.layers)-3)[freeze_body-1]
             for i in range(num): model_body.layers[i].trainable = False
             print('Freeze the first {} layers of total {} layers.'.format(num, len(model_body.layers)))
 

@@ -19,14 +19,13 @@ def map50_metric(ytrue, ypred):
     return metrics.map_metric(ytrue, ypred, 0.5, 3)
 
 
-
-
-
 def _main():
-    prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
+    prefix = 'C:/Users/CTK-VR1/Chalmers Teknologkonsulter AB/Bird Classification - Bird Detection - Images/Original images/'
+    #prefix = 'C:/Users/CTK_CAD/Chalmers Teknologkonsulter AB/Bird Classification - Images/Bird Detection - Images/Original images/'
     #prefix = 'gs:/bdp-original-images/Original images/'
-    annotation_path = prefix + 'train2.txt'
-    log_dir = 'E:/Teade checkpoints/000/'
+    annotation_path = prefix + 'train4.txt'
+    log_dir = 'D:/Teade checkpoints/'
+    #log_dir = 'E:/Teade checkpoints/000/'
     event_dir = 'logs/000/'
     classes_path = 'model_data/teade_classes.txt'
     anchors_path = 'model_data/my_anchors4.txt'
@@ -34,23 +33,23 @@ def _main():
     num_classes = len(class_names)
     anchors = get_anchors(anchors_path)
 
-    input_shape = (416,416) # multiple of 32, hw
+    input_shape = (384,384) # multiple of 32, hw
 
     is_tiny_version = len(anchors)==6 # default setting
     if is_tiny_version:
         model = create_tiny_model(input_shape, anchors, num_classes,
             freeze_body=1, weights_path='model_data/tiny_yolo_weights.h5')
     else:
-        #model = create_model(input_shape, anchors, num_classes,freeze_body=2, weights_path='logs/000/new_trained_weights_stage_1.h5') # make sure you know what you freeze
-        model = create_model(input_shape, anchors, num_classes,freeze_body=2, weights_path=log_dir + 'finalmodel_stage_14.h5') # make sure you know what you freeze
+        #model = create_model(input_shape, anchors, num_classes,freeze_body=2, weights_path='model_data/yolo_weights.h5') # make sure you know what you freeze
+        model = create_model(input_shape, anchors, num_classes,freeze_body=2, weights_path=log_dir + 'model_new_25_july_0_ver_1.h5') # make sure you know what you freeze
 
     logging = TensorBoard(log_dir=event_dir)
     checkpoint = ModelCheckpoint(log_dir + 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5',
-        monitor='val_loss', save_weights_only=True, save_best_only=True,mode='min', period=1)
+        monitor='loss', save_weights_only=True, save_best_only=True,mode='min', period=1)
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, verbose=1)
     early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=1)
 
-    val_split = 0.1
+    val_split = 0.0
     with open(annotation_path) as f:
         lines = f.readlines()
     np.random.seed(10101)
@@ -71,45 +70,55 @@ def _main():
         #print(model.summary())
         #print(model.layers[185].trainable)  #Layer 184 = last Add-layer, end of Darknet?  Freeze=1 freezes everythin up to this point
 
-        batch_size = 16
+        batch_size = 48
         print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
         model.fit_generator(data_generator_wrapper(lines[:num_train], prefix, batch_size, input_shape, anchors, num_classes),
                 steps_per_epoch=max(1, num_train//batch_size),
                 validation_data=data_generator_wrapper(lines[num_train:], prefix, batch_size, input_shape, anchors, num_classes),
                 validation_steps=max(1, num_val//batch_size),
-                epochs=250,
+                epochs=2,
                 verbose=1,
-                initial_epoch=180,
+                initial_epoch=0,
                 callbacks=[logging, checkpoint])
         model.save_weights(log_dir + 'finalmodel_stage_XXX.h5')
 
     # Unfreeze and continue training, to fine-tune.
     # Train longer if the result is not good.
-    num_iter = 4
-    epoch_per_iter = 15  # Tror att detta fungerar men tänk en extra gång på om modellen sparas i varje iteration
+    epoch_per_iter = 20  # Tror att detta fungerar men tänk en extra gång på om modellen sparas i varje iteration
+    counter  = 0
     if True:
-        for iter in range(num_iter):
-            for i in range(200-iter*10,len(model.layers)):
+        for iter in [60, 30, 30, 0, 0, 0, 0, 0, 0, 0]:
+            for i in range(iter,len(model.layers)):
                 model.layers[i].trainable = True
-            model.compile(optimizer=Adam(lr=1e-4), loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
-            temp = 200 - 10*iter
-            print('Freeze '+ str(temp) +' of the layers.')
-            batch_size = 16 # note that more GPU memory is required after unfreezing the body
-            if temp <= 100 and temp >=40:  #modellen klarar att frysa alla utom 110 lager om input_shape = 352, batch=16, men crashar för 100 lager
-                batch_size = 8
+            if iter==249:
+                learn_rate = 1e-3
+                epoch_per_iter = 11
+            else:
+                learn_rate = 1e-4
+            model.compile(optimizer=Adam(lr=learn_rate), loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
+            print('Freeze '+ str(iter) +' of the layers.')
+
+            if iter==249:
+                batch_size = 128
+            if iter in [225, 200, 170, 145, 120, 90]:
+                batch_size = 32
+            if iter in [60, 30, 0]:
+                batch_size = 16
+            #if temp <= 100 and temp >=40:  #modellen klarar att frysa alla utom 110 lager om input_shape = 352, batch=16, men crashar för 100 lager
+            #    batch_size = 8
             print('Train on {} samples, val on {} samples, with batch size {}.'.format(num_train, num_val, batch_size))
-            init_epoch = 285+iter*epoch_per_iter
+            if iter == 249:
+                init_epoch = 9
+            else:
+                init_epoch = 240 + counter*epoch_per_iter
             model.fit_generator(data_generator_wrapper(lines[:num_train], prefix, batch_size, input_shape, anchors, num_classes),
                 steps_per_epoch=max(1, num_train//batch_size),
-                validation_data=data_generator_wrapper(lines[num_train:], prefix, batch_size, input_shape, anchors, num_classes),
-                validation_steps=max(1, num_val//batch_size),
                 epochs=init_epoch+epoch_per_iter,
                 initial_epoch=init_epoch,
-                verbose=2,
-                callbacks=[logging, checkpoint, reduce_lr, early_stopping])
-            temp_num = iter+15
-            model.save_weights(log_dir + 'finalmodel_stage_'+str(temp_num)+'.h5')
-
+                verbose=1,
+                callbacks=[logging])
+            model.save_weights(log_dir + 'model_new_26_july_'+str(iter)+'_ver_'+str(counter)+'.h5')
+            counter +=1
     # Further training if needed.
 
 def get_classes(classes_path):
@@ -145,7 +154,7 @@ def create_model(input_shape, anchors, num_classes, load_pretrained=True, freeze
         if freeze_body in [1, 2]:
             # Freeze darknet53 body or freeze all but 3 output layers.
             #num = (185, len(model_body.layers)-3)[freeze_body-1]
-            num = (180, len(model_body.layers) - 3)[freeze_body - 1]
+            num = (100, len(model_body.layers) - 3)[freeze_body - 1]
             for i in range(num): model_body.layers[i].trainable = False
             print('Freeze the first {} layers of total {} layers.'.format(num, len(model_body.layers)))
 
